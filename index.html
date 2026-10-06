@@ -1,0 +1,1271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<title>Zine Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: controls on the left, a live drawing of the printed sheet on the right; stacks on phones.
+   Look: risograph print shop. Hard 2px ink edges, offset shadows, pink and blue spot inks on cool grey stock. */
+:root {
+  --stock: #e6eaf0;
+  --panel: #f6f8fb;
+  --ink: #14161c;
+  --muted: #566074;
+  --pink: #ff3d8b;
+  --on-pink: #14161c;
+  --blue: #0079c2;
+  --hl: #ffe14d;
+  --on-hl: #14161c;
+  --field: #ffffff;
+  --paper: #ffffff;
+  --shadow: 4px 4px 0 var(--ink);
+  --f-display: "DotGothic16", "Hiragino Kaku Gothic ProN", "Yu Gothic", monospace;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --stock: #12141a;
+    --panel: #1b1e27;
+    --ink: #eef0f6;
+    --muted: #9aa3b6;
+    --pink: #ff5fa0;
+    --on-pink: #14161c;
+    --blue: #55c1ff;
+    --hl: #ffe14d;
+    --on-hl: #14161c;
+    --field: #232734;
+    --paper: #ffffff;
+    --shadow: 4px 4px 0 #000;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --stock: #12141a;
+  --panel: #1b1e27;
+  --ink: #eef0f6;
+  --muted: #9aa3b6;
+  --pink: #ff5fa0;
+  --on-pink: #14161c;
+  --blue: #55c1ff;
+  --hl: #ffe14d;
+  --on-hl: #14161c;
+  --field: #232734;
+  --paper: #ffffff;
+  --shadow: 4px 4px 0 #000;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--stock);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-inline: 16px;
+  padding-block: 24px 48px;
+}
+.app { max-width: 1120px; margin: 0 auto; display: grid; gap: 24px; }
+
+h1 {
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: clamp(2rem, 6vw, 3rem);
+  line-height: 1.05;
+  margin: 0;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+h1 span { background: var(--pink); color: var(--on-pink); padding: 0 .25em; }
+.lede { margin: 8px 0 0; max-width: 56ch; color: var(--muted); }
+
+.layout { display: grid; gap: 24px; align-items: start; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 880px) { .layout { grid-template-columns: minmax(0, 23rem) minmax(0, 1fr); } }
+
+.panel {
+  background: var(--panel);
+  border: 2px solid var(--ink);
+  box-shadow: var(--shadow);
+  padding: 18px;
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 10px; }
+legend, .label {
+  font-family: var(--f-display);
+  font-size: .95rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 0;
+  margin-bottom: 2px;
+}
+.hint { margin: 0; font-size: .85rem; color: var(--muted); }
+.row { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field > span { font-size: .8rem; color: var(--muted); }
+
+input[type="number"], select {
+  width: 100%;
+  font: 500 .95rem var(--f-mono);
+  color: var(--ink);
+  background: var(--field);
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  padding: 8px 10px;
+  min-height: 42px;
+}
+select { font-family: var(--f-body); }
+input:focus-visible, select:focus-visible, button:focus-visible, .seg input:focus-visible + label {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.seg { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 2px solid var(--ink); background: var(--field); }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label {
+  display: grid; place-items: center; text-align: center;
+  padding: 9px 6px; min-height: 44px;
+  font-family: var(--f-display); font-size: .9rem; line-height: 1.15; cursor: pointer;
+  border-left: 2px solid var(--ink);
+}
+.seg label:first-of-type { border-left: 0; }
+.seg input:checked + label { background: var(--ink); color: var(--stock); }
+.seg.small label { min-height: 36px; padding: 5px 4px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font: 500 .82rem var(--f-mono);
+  color: var(--ink); background: var(--field);
+  border: 2px solid var(--ink); padding: 4px 9px; min-height: 34px; cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--hl); color: var(--on-hl); }
+
+.check { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; cursor: pointer; }
+.check input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--pink); flex: none; }
+.check small { display: block; color: var(--muted); font-size: .8rem; }
+
+.primary {
+  font-family: var(--f-display); font-size: 1.15rem; letter-spacing: .03em;
+  background: var(--pink); color: var(--on-pink);
+  border: 2px solid var(--ink); box-shadow: var(--shadow);
+  padding: 12px 16px; min-height: 52px; cursor: pointer; width: 100%;
+}
+.primary:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+.primary[disabled] { opacity: .55; cursor: not-allowed; }
+.secondary {
+  font: 600 .88rem var(--f-body); color: var(--ink); background: var(--field);
+  border: 2px solid var(--ink); padding: 8px 12px; min-height: 40px; cursor: pointer;
+}
+
+.status { display: grid; gap: 8px; font-size: .88rem; }
+.bar { height: 14px; border: 2px solid var(--ink); background: var(--field); }
+.bar span { display: block; height: 100%; width: 0; background: var(--pink); }
+.status p { margin: 0; overflow-wrap: anywhere; }
+.status .err { background: var(--hl); color: var(--on-hl); padding: 8px 10px; border: 2px solid var(--ink); }
+
+.stage { display: grid; gap: 16px; min-width: 0; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: 0; border: 2px solid var(--ink); background: var(--panel); }
+.stats div { padding: 8px 12px; border-left: 2px solid var(--ink); min-width: 0; }
+.stats div:first-child { border-left: 0; }
+.stats dt { font-family: var(--f-display); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.stats dd { margin: 0; font: 500 .95rem var(--f-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .stats div { border-left: 0; border-top: 2px solid var(--ink); }
+  .stats div:first-child { border-top: 0; }
+}
+
+.note { margin: 0; padding: 8px 12px; border: 2px solid var(--ink); font-size: .88rem; background: var(--panel); }
+.note.warn { background: var(--hl); color: var(--on-hl); }
+.notes { display: grid; gap: 8px; }
+
+figure { margin: 0; display: grid; gap: 8px; }
+.sheet { background: var(--paper); border: 2px solid var(--ink); box-shadow: var(--shadow); padding: 0; line-height: 0; }
+.sheet svg { width: 100%; height: auto; max-height: 68vh; display: block; }
+figcaption { font: 500 .85rem var(--f-mono); color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .8rem; color: var(--muted); }
+.legend i { display: inline-block; width: 14px; height: 10px; margin-right: 6px; border: 1px solid var(--ink); vertical-align: -1px; }
+
+.files { display: flex; flex-wrap: wrap; gap: 6px; max-height: 9.5rem; overflow-y: auto; padding: 2px; }
+.howto { display: grid; gap: 6px; font-size: .9rem; }
+.howto h2 { font-family: var(--f-display); font-weight: 400; font-size: .95rem; letter-spacing: .06em; text-transform: uppercase; margin: 0; }
+.howto ol { margin: 0; padding-left: 1.25rem; display: grid; gap: 4px; }
+.noscript { padding: 12px; border: 2px solid var(--ink); background: var(--hl); color: var(--on-hl); }
+</style>
+
+<main class="app">
+  <header>
+    <h1>Zine <span>Maker</span></h1>
+    <p class="lede">Pick the page count and size. You get layered Photoshop files with the guides, bleed and page numbers already in place, so you only add your artwork and print.</p>
+  </header>
+
+  <div class="layout">
+    <form id="form" class="panel" autocomplete="off">
+      <fieldset>
+        <legend>Format</legend>
+        <div class="seg" role="radiogroup" aria-label="Format">
+          <input type="radio" name="mode" id="mode-booklet" value="booklet" checked><label for="mode-booklet">Stapled booklet</label>
+          <input type="radio" name="mode" id="mode-singles" value="singles"><label for="mode-singles">Single pages</label>
+          <input type="radio" name="mode" id="mode-minizine" value="minizine"><label for="mode-minizine">Fold and cut</label>
+        </div>
+        <p class="hint" id="modeHint"></p>
+      </fieldset>
+
+      <fieldset id="pagesSet">
+        <legend>Pages</legend>
+        <div class="field">
+          <input type="number" id="pages" min="1" max="100" step="1" inputmode="numeric" aria-label="Number of pages">
+        </div>
+        <div class="chips" id="pageChips" role="group" aria-label="Common page counts"></div>
+      </fieldset>
+
+      <fieldset id="sizeSet">
+        <legend>Page size</legend>
+        <div class="field">
+          <select id="preset" aria-label="Page size preset"></select>
+        </div>
+        <div class="row" id="customRow" hidden>
+          <label class="field"><span>Width</span><input type="number" id="customW" min="0.5" step="any" inputmode="decimal"></label>
+          <label class="field"><span>Height</span><input type="number" id="customH" min="0.5" step="any" inputmode="decimal"></label>
+        </div>
+        <label class="check"><input type="checkbox" id="landscape"><span>Landscape pages</span></label>
+      </fieldset>
+
+      <fieldset id="sheetSet" hidden>
+        <legend>Paper</legend>
+        <div class="field">
+          <select id="sheet" aria-label="Paper size"></select>
+        </div>
+        <p class="hint" id="sheetHint"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Print setup</legend>
+        <div class="seg small" role="radiogroup" aria-label="Units">
+          <input type="radio" name="unit" id="unit-in" value="in" checked><label for="unit-in">Inches</label>
+          <input type="radio" name="unit" id="unit-mm" value="mm"><label for="unit-mm">Millimetres</label>
+        </div>
+        <div class="row">
+          <label class="field"><span>Resolution</span>
+            <select id="dpi">
+              <option value="150">150 dpi</option>
+              <option value="300" selected>300 dpi</option>
+              <option value="600">600 dpi (huge)</option>
+            </select>
+          </label>
+          <label class="field"><span>Bleed</span><input type="number" id="bleed" min="0" step="any" inputmode="decimal"></label>
+        </div>
+        <div class="chips" role="group" aria-label="Bleed presets">
+          <button type="button" class="chip" id="bleedNone">No bleed</button>
+          <button type="button" class="chip" id="bleedStd">Print shop</button>
+        </div>
+        <div class="row">
+          <label class="field"><span>Safe margin</span><input type="number" id="safe" min="0" step="any" inputmode="decimal"></label>
+          <label class="field" id="innerField"><span>Spine-side margin</span><input type="number" id="inner" min="0" step="any" inputmode="decimal"></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Template</legend>
+        <label class="check"><input type="checkbox" id="overlay" checked><span>Show the guide overlay layer<small>Bleed tint, safe area, page numbers. Turn its eye off before you export.</small></span></label>
+        <label class="check"><input type="checkbox" id="mask"><span>Mask each page group to its page<small>Keeps art on one page from spilling onto the next. Not tested in Photoshop itself.</small></span></label>
+      </fieldset>
+
+      <button type="button" class="primary" id="buildBtn">Build template</button>
+
+      <div class="status" id="status" aria-live="polite" hidden>
+        <div class="bar" id="bar" hidden><span id="barFill"></span></div>
+        <p id="statusText"></p>
+        <button type="button" class="primary" id="dlBtn" hidden></button>
+      </div>
+    </form>
+
+    <section class="stage" aria-label="Preview">
+      <dl class="stats" id="stats"></dl>
+      <div class="notes" id="notes"></div>
+      <figure>
+        <div class="sheet"><svg id="preview" role="img" aria-label="Sheet preview"></svg></div>
+        <figcaption id="caption"></figcaption>
+        <div class="legend">
+          <span><i style="background:#ff3d8b"></i>Trim and bleed</span>
+          <span><i style="background:#fff;border-color:#0090d9"></i>Safe area</span>
+          <span><i style="background:#e60000"></i>Cut line</span>
+        </div>
+      </figure>
+      <div class="files" id="files" role="group" aria-label="Files in this template"></div>
+      <div><button type="button" class="secondary" id="dlOne" hidden></button></div>
+      <div class="howto" id="howto"></div>
+    </section>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/ag-psd@31.0.2/dist/bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+/* ZineCore: plans a zine's sheets and writes one layered PSD per sheet.
+ * Works in a browser (pass document-backed canvases) and in Node (pass @napi-rs/canvas).
+ * All geometry is computed in pixels at the chosen DPI.
+ */
+var ZineCore = (function () {
+  'use strict';
+
+  var MM_PER_IN = 25.4;
+
+  var TRIM_PRESETS = [
+    { id: 'half-letter',    name: 'Half-letter',    w: 5.5,  h: 8.5,  unit: 'in' },
+    { id: 'quarter-letter', name: 'Quarter-letter', w: 4.25, h: 5.5,  unit: 'in' },
+    { id: 'a5',             name: 'A5',             w: 148,  h: 210,  unit: 'mm' },
+    { id: 'a6',             name: 'A6',             w: 105,  h: 148,  unit: 'mm' },
+    { id: 'b6',             name: 'B6',             w: 125,  h: 176,  unit: 'mm' },
+    { id: 'square-6',       name: 'Square 6 in',    w: 6,    h: 6,    unit: 'in' },
+    { id: 'square-8',       name: 'Square 8 in',    w: 8,    h: 8,    unit: 'in' },
+    { id: 'custom',         name: 'Custom',         w: 5,    h: 7,    unit: 'in' }
+  ];
+
+  var SHEET_PRESETS = [
+    { id: 'letter',  name: 'US Letter (11 x 8.5 in)', w: 11,  h: 8.5, unit: 'in' },
+    { id: 'a4',      name: 'A4 (297 x 210 mm)',       w: 297, h: 210, unit: 'mm' },
+    { id: 'tabloid', name: 'Tabloid (17 x 11 in)',    w: 17,  h: 11,  unit: 'in' },
+    { id: 'a3',      name: 'A3 (420 x 297 mm)',       w: 420, h: 297, unit: 'mm' }
+  ];
+
+  function toInches(v, unit) { return unit === 'mm' ? v / MM_PER_IN : v; }
+  function toPx(v, unit, dpi) { return Math.round(toInches(v, unit) * dpi); }
+  function pad(n, len) { var s = String(n); while (s.length < len) s = '0' + s; return s; }
+
+  function roleLabel(page, total) {
+    if (page === 1) return 'FRONT COVER';
+    if (page === 2) return 'INSIDE FRONT COVER';
+    if (page === total - 1) return 'INSIDE BACK COVER';
+    if (page === total) return 'BACK COVER';
+    return '';
+  }
+
+  /* ---------- planning ---------- */
+
+  /* opts: {
+   *   mode: 'booklet' | 'singles' | 'minizine',
+   *   pages: number,
+   *   unit: 'in' | 'mm',
+   *   trimW, trimH: page trim size in `unit` (booklet, singles),
+   *   sheetW, sheetH: paper size in `unit` (minizine),
+   *   dpi, bleed, safe, inner (all in `unit`),
+   *   overlayVisible: bool, maskPages: bool
+   * } */
+  function makePlan(opts) {
+    var dpi = opts.dpi;
+    var unit = opts.unit;
+    var bleed = toPx(opts.bleed || 0, unit, dpi);
+    var safe = toPx(opts.safe || 0, unit, dpi);
+    var inner = toPx(opts.inner == null ? opts.safe : opts.inner, unit, dpi);
+    var mode = opts.mode;
+    var notes = [];
+    var pages = Math.max(1, Math.floor(opts.pages || 1));
+    var W, H;
+
+    if (mode === 'minizine') {
+      pages = 8;
+      var sw = toPx(opts.sheetW, unit, dpi);
+      var sh = toPx(opts.sheetH, unit, dpi);
+      W = Math.floor(sw / 4);
+      H = Math.floor(sh / 2);
+    } else {
+      W = toPx(opts.trimW, unit, dpi);
+      H = toPx(opts.trimH, unit, dpi);
+    }
+
+    var requestedPages = pages;
+    if (mode === 'booklet') {
+      if (pages < 4) pages = 4;
+      if (pages % 4) pages += 4 - (pages % 4);
+      if (pages !== requestedPages) {
+        notes.push('A saddle-stitched booklet needs a multiple of 4 pages, so ' + requestedPages +
+          ' became ' + pages + '. Pages ' + (requestedPages + 1) + ' to ' + pages + ' are blank spares.');
+      }
+    }
+
+    if (safe * 2 >= W || safe * 2 >= H) {
+      notes.push('The safe margin is larger than half the page, so the safe area collapses.');
+    }
+
+    var sheets = [];
+    var si, p;
+
+    function cell(page, col, row, cols, rows, extra) {
+      var c = {
+        page: page,
+        x: bleed + col * W,
+        y: bleed + row * H,
+        w: W,
+        h: H,
+        rot: 0,
+        spine: null,
+        bl: col === 0 ? bleed : 0,
+        br: col === cols - 1 ? bleed : 0,
+        bt: row === 0 ? bleed : 0,
+        bb: row === rows - 1 ? bleed : 0
+      };
+      for (var k in extra) c[k] = extra[k];
+      c.ml = c.spine === 'left' ? inner : safe;
+      c.mr = c.spine === 'right' ? inner : safe;
+      c.mt = safe;
+      c.mb = safe;
+      c.role = roleLabel(page, pages);
+      return c;
+    }
+
+    if (mode === 'booklet') {
+      var nSheets = pages / 4;
+      var n = 0;
+      for (si = 1; si <= nSheets; si++) {
+        var fL = pages - 2 * (si - 1), fR = 2 * (si - 1) + 1;
+        var bL = 2 * si, bR = pages - 2 * si + 1;
+        var pairs = [
+          { side: 'front', l: fL, r: fR },
+          { side: 'back', l: bL, r: bR }
+        ];
+        for (var pi = 0; pi < 2; pi++) {
+          n++;
+          var pr = pairs[pi];
+          sheets.push({
+            index: n,
+            title: 'Sheet ' + si + ' ' + pr.side,
+            file: pad(n, 2) + '_sheet' + si + '-' + pr.side + '_p' + pr.l + '-p' + pr.r + '.psd',
+            width: 2 * W + 2 * bleed,
+            height: H + 2 * bleed,
+            cells: [
+              cell(pr.l, 0, 0, 2, 1, { spine: 'right' }),
+              cell(pr.r, 1, 0, 2, 1, { spine: 'left' })
+            ]
+          });
+        }
+      }
+    } else if (mode === 'singles') {
+      var digits = String(pages).length;
+      for (p = 1; p <= pages; p++) {
+        sheets.push({
+          index: p,
+          title: 'Page ' + p,
+          file: 'page-' + pad(p, Math.max(2, digits)) + '.psd',
+          width: W + 2 * bleed,
+          height: H + 2 * bleed,
+          cells: [cell(p, 0, 0, 1, 1, { spine: p % 2 === 1 ? 'left' : 'right' })]
+        });
+      }
+    } else {
+      var top = [5, 4, 3, 2], bottom = [6, 7, 8, 1];
+      var cells = [];
+      var i;
+      for (i = 0; i < 4; i++) cells.push(cell(top[i], i, 0, 4, 2, { rot: 180 }));
+      for (i = 0; i < 4; i++) cells.push(cell(bottom[i], i, 1, 4, 2, {}));
+      sheets.push({
+        index: 1,
+        title: 'Fold-and-cut sheet',
+        file: 'minizine-8pp_sheet.psd',
+        width: 4 * W + 2 * bleed,
+        height: 2 * H + 2 * bleed,
+        cells: cells,
+        cut: { x1: bleed + W, x2: bleed + 3 * W, y: bleed + H }
+      });
+    }
+
+    return {
+      mode: mode,
+      pages: pages,
+      requestedPages: requestedPages,
+      unit: unit,
+      dpi: dpi,
+      trim: { w: W, h: H },
+      bleed: bleed,
+      safe: safe,
+      inner: inner,
+      spec: {
+        bleed: opts.bleed || 0,
+        safe: opts.safe || 0,
+        inner: opts.inner == null ? (opts.safe || 0) : opts.inner
+      },
+      overlayVisible: opts.overlayVisible !== false,
+      maskPages: !!opts.maskPages,
+      sheets: sheets,
+      notes: notes
+    };
+  }
+
+  /* ---------- guides ---------- */
+
+  function sheetGuides(sheet) {
+    var v = {}, h = {};
+    sheet.cells.forEach(function (c) {
+      v[c.x] = 1; v[c.x + c.w] = 1;
+      v[c.x + c.ml] = 1; v[c.x + c.w - c.mr] = 1;
+      h[c.y] = 1; h[c.y + c.h] = 1;
+      h[c.y + c.mt] = 1; h[c.y + c.h - c.mb] = 1;
+    });
+    var out = [];
+    Object.keys(v).map(Number).sort(function (a, b) { return a - b; }).forEach(function (x) {
+      if (x > 0 && x < sheet.width) out.push({ location: x, direction: 'vertical' });
+    });
+    Object.keys(h).map(Number).sort(function (a, b) { return a - b; }).forEach(function (y) {
+      if (y > 0 && y < sheet.height) out.push({ location: y, direction: 'horizontal' });
+    });
+    return out;
+  }
+
+  /* ---------- PSD building ---------- */
+
+  var FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+
+  function buildPsd(plan, sheet, deps) {
+    var mk = deps.createCanvas;
+    var dpi = plan.dpi;
+    var drawn = []; // visible overlay pieces for the composite
+    var made = [];  // every canvas, so we can free them
+
+    function canvas(w, h) {
+      var c = mk(Math.max(1, w), Math.max(1, h));
+      made.push(c);
+      return c;
+    }
+
+    var lw = Math.max(2, Math.round(dpi / 100));
+
+    // Paper
+    var paper = canvas(sheet.width, sheet.height);
+    var pctx = paper.getContext('2d');
+    pctx.fillStyle = '#ffffff';
+    pctx.fillRect(0, 0, sheet.width, sheet.height);
+
+    var pageGroups = [];
+    var overlayChildren = [];
+
+    sheet.cells.forEach(function (c) {
+      var label = 'P' + c.page;
+
+      // page artwork group, optionally masked to the page area
+      var kids = [{ name: label + ' drop artwork here' }];
+      var group = { name: label + ' ART', opened: false, children: kids };
+      if (plan.maskPages) {
+        var mx = c.x - c.bl, my = c.y - c.bt;
+        var mw = c.bl + c.w + c.br, mh = c.bt + c.h + c.bb;
+        var mc = canvas(mw, mh);
+        var mctx = mc.getContext('2d');
+        mctx.fillStyle = '#ffffff';
+        mctx.fillRect(0, 0, mw, mh);
+        group.mask = {
+          top: my, left: mx, bottom: my + mh, right: mx + mw,
+          defaultColor: 0, canvas: mc
+        };
+      }
+      pageGroups.push(group);
+
+      // trim / safe / bleed overlay for this page
+      var ox = c.x - c.bl, oy = c.y - c.bt;
+      var cw = c.bl + c.w + c.br, ch = c.bt + c.h + c.bb;
+      var oc = canvas(cw, ch);
+      var o = oc.getContext('2d');
+      if (c.bl || c.br || c.bt || c.bb) {
+        o.fillStyle = 'rgba(255, 45, 120, 0.20)';
+        o.fillRect(0, 0, cw, ch);
+        o.clearRect(c.bl, c.bt, c.w, c.h);
+      }
+      o.lineWidth = lw;
+      o.strokeStyle = '#00a3e0';
+      o.setLineDash([lw * 5, lw * 3]);
+      var sx = c.bl + c.ml, sy = c.bt + c.mt;
+      var sw = c.w - c.ml - c.mr, sh = c.h - c.mt - c.mb;
+      if (sw > lw && sh > lw) o.strokeRect(sx + lw / 2, sy + lw / 2, sw - lw, sh - lw);
+      o.setLineDash([]);
+      o.strokeStyle = '#ff2d78';
+      o.strokeRect(c.bl + lw / 2, c.bt + lw / 2, c.w - lw, c.h - lw);
+      overlayChildren.push({ name: label + ' trim, safe, bleed', canvas: oc, left: ox, top: oy });
+      drawn.push({ canvas: oc, left: ox, top: oy });
+
+      // page number + role
+      var lwid = Math.max(8, Math.round(c.w * 0.74));
+      var lhei = Math.max(8, Math.round(c.h * 0.3));
+      var lc = canvas(lwid, lhei);
+      var l = lc.getContext('2d');
+      l.translate(lwid / 2, lhei / 2);
+      if (c.rot === 180) l.rotate(Math.PI);
+      l.fillStyle = 'rgba(30, 30, 30, 0.38)';
+      l.textAlign = 'center';
+      l.textBaseline = 'middle';
+      var big = Math.round(Math.min(c.h * 0.16, c.w * 0.3));
+      l.font = '700 ' + big + 'px ' + FONT;
+      l.fillText(String(c.page), 0, c.role ? -big * 0.18 : 0);
+      if (c.role) {
+        var small = Math.max(10, Math.round(big * 0.22));
+        l.font = '600 ' + small + 'px ' + FONT;
+        l.fillText(c.role, 0, big * 0.55);
+      }
+      var lx = Math.round(c.x + (c.w - lwid) / 2), ly = Math.round(c.y + (c.h - lhei) / 2);
+      overlayChildren.push({ name: label + ' page label', canvas: lc, left: lx, top: ly });
+      drawn.push({ canvas: lc, left: lx, top: ly });
+    });
+
+    // cut slit for the one-sheet mini zine
+    if (sheet.cut) {
+      var cut = sheet.cut;
+      var thick = lw * 2;
+      var cwid = cut.x2 - cut.x1;
+      var chei = Math.max(thick, Math.round(dpi * 0.35));
+      var cc = canvas(cwid, chei);
+      var k = cc.getContext('2d');
+      k.strokeStyle = '#e60000';
+      k.lineWidth = thick;
+      k.beginPath();
+      k.moveTo(0, chei / 2);
+      k.lineTo(cwid, chei / 2);
+      k.stroke();
+      k.fillStyle = '#e60000';
+      k.textAlign = 'center';
+      k.textBaseline = 'bottom';
+      k.font = '700 ' + Math.round(dpi * 0.11) + 'px ' + FONT;
+      k.fillText('CUT HERE (middle two folds only)', cwid / 2, chei / 2 - thick * 1.5);
+      var cl = cut.x1, ct = Math.round(cut.y - chei / 2);
+      overlayChildren.push({ name: 'CUT line', canvas: cc, left: cl, top: ct });
+      drawn.push({ canvas: cc, left: cl, top: ct });
+    }
+
+    var children = [{ name: 'Paper', canvas: paper, left: 0, top: 0 }];
+    pageGroups.forEach(function (g) { children.push(g); });
+    var overlay = {
+      name: 'TEMPLATE OVERLAY (hide before export)',
+      opened: true,
+      hidden: !plan.overlayVisible,
+      children: overlayChildren
+    };
+    children.push(overlay);
+
+    // flat composite for previews
+    var comp = canvas(sheet.width, sheet.height);
+    var cx = comp.getContext('2d');
+    cx.drawImage(paper, 0, 0);
+    if (plan.overlayVisible) {
+      drawn.forEach(function (d) { cx.drawImage(d.canvas, d.left, d.top); });
+    }
+
+    var psd = {
+      width: sheet.width,
+      height: sheet.height,
+      channels: 3,
+      bitsPerChannel: 8,
+      colorMode: 3,
+      canvas: comp,
+      children: children,
+      imageResources: {
+        resolutionInfo: {
+          horizontalResolution: dpi, horizontalResolutionUnit: 'PPI', widthUnit: 'Inches',
+          verticalResolution: dpi, verticalResolutionUnit: 'PPI', heightUnit: 'Inches'
+        },
+        gridAndGuidesInformation: { guides: sheetGuides(sheet) }
+      }
+    };
+
+    return {
+      psd: psd,
+      free: function () {
+        made.forEach(function (c) { c.width = 0; c.height = 0; });
+      }
+    };
+  }
+
+  function renderSheet(plan, sheet, deps) {
+    var built = buildPsd(plan, sheet, deps);
+    try {
+      return deps.agPsd.writePsd(built.psd, { generateThumbnail: true, noBackground: true });
+    } finally {
+      built.free();
+    }
+  }
+
+  /* ---------- README ---------- */
+
+  function fmtSize(plan, px) {
+    var inches = px / plan.dpi;
+    if (plan.unit === 'mm') return (Math.round(inches * MM_PER_IN * 10) / 10) + ' mm';
+    return (Math.round(inches * 1000) / 1000) + ' in';
+  }
+
+  function fmtVal(v, unit) {
+    var r = unit === 'mm' ? Math.round(v * 10) / 10 : Math.round(v * 1000) / 1000;
+    return r + (unit === 'mm' ? ' mm' : ' in');
+  }
+
+  function buildReadme(plan, label) {
+    var L = [];
+    var s0 = plan.sheets[0];
+    L.push('ZINE TEMPLATE - ' + label);
+    L.push('='.repeat(Math.min(60, 15 + label.length)));
+    L.push('');
+    L.push(plan.pages + ' pages, ' + plan.sheets.length + ' PSD file' + (plan.sheets.length === 1 ? '' : 's') +
+      ', ' + plan.dpi + ' dpi, RGB 8-bit.');
+    L.push('Page trim size: ' + fmtSize(plan, plan.trim.w) + ' x ' + fmtSize(plan, plan.trim.h) +
+      '  (' + plan.trim.w + ' x ' + plan.trim.h + ' px)');
+    L.push('Bleed: ' + (plan.bleed ? fmtVal(plan.spec.bleed, plan.unit) + ' (' + plan.bleed + ' px)' : 'none') +
+      '   Safe margin: ' + fmtVal(plan.spec.safe, plan.unit) +
+      (plan.mode !== 'minizine' && plan.spec.inner !== plan.spec.safe ? '   Spine-side margin: ' + fmtVal(plan.spec.inner, plan.unit) : ''));
+    L.push('Canvas per file: ' + s0.width + ' x ' + s0.height + ' px  (' +
+      fmtSize(plan, s0.width) + ' x ' + fmtSize(plan, s0.height) + ')');
+    L.push('');
+    plan.notes.forEach(function (n) { L.push('NOTE: ' + n); });
+    if (plan.notes.length) L.push('');
+
+    L.push('WHAT IS IN EACH FILE');
+    L.push('- Native Photoshop guides at every trim edge and safe margin (View > Show > Guides).');
+    L.push('- "Paper": a white layer so nothing prints transparent.');
+    L.push('- One empty group per page ("P3 ART"). Put your artwork inside the group for that page.' +
+      (plan.maskPages ? ' Each group has a mask, so art on one page never spills onto its neighbour.' : ''));
+    L.push('- "TEMPLATE OVERLAY (hide before export)": pink = bleed, blue dashes = safe area,');
+    L.push('  pink line = trim edge, big grey numbers = page numbers. Switch its eye OFF before you export or print.');
+    L.push('');
+
+    if (plan.mode === 'booklet') {
+      L.push('SHEET MAP (each file is one side of one sheet, left page | right page)');
+      var w = 0, i;
+      for (i = 0; i < plan.sheets.length; i++) w = Math.max(w, plan.sheets[i].file.length);
+      for (i = 0; i < plan.sheets.length; i++) {
+        var sh = plan.sheets[i];
+        var nm = sh.file;
+        while (nm.length < w) nm += ' ';
+        L.push('  ' + nm + '   [ ' + sh.cells[0].page + ' | ' + sh.cells[1].page + ' ]');
+      }
+      L.push('');
+      L.push('PRINTING A STAPLED BOOKLET');
+      L.push('1. Export each PSD to PDF (or flatten and save as PNG/TIFF) with the overlay hidden.');
+      L.push('2. Combine the exports in file order (01, 02, 03 ...) into one PDF.');
+      L.push('3. Print double-sided, flipping on the short edge. Print sheet 1 alone first as a test.');
+      L.push('4. Stack the sheets with sheet 1 outermost, fold the stack in half, staple along the fold.');
+    } else if (plan.mode === 'singles') {
+      L.push('PRINTING');
+      L.push('Each file is one page, numbered in reading order. Odd pages are right-hand pages and keep the');
+      L.push('wider margin on their left (spine) side, even pages on their right.');
+      L.push('Export each to PDF with the overlay hidden and send them to your printer or print shop in order.');
+    } else {
+      L.push('FOLD-AND-CUT 8-PAGE MINI ZINE');
+      L.push('Layout seen from the printed side (top row prints upside down):');
+      L.push('    5 | 4 | 3 | 2   (upside down)');
+      L.push('    6 | 7 | 8 | 1');
+      L.push('1. Print single-sided at 100% scale, no "fit to page".');
+      L.push('2. Fold the sheet in half the short way, then open it. Fold it in half the long way, then open it.');
+      L.push('3. Cut the slit along the red line, through the middle two folds only.');
+      L.push('4. Fold in half the long way again, push the ends together so the slit opens into a diamond,');
+      L.push('   then fold the four pages around into a booklet with page 1 on the cover.');
+    }
+    L.push('');
+    L.push('COLOUR');
+    L.push('Files are RGB. If your print shop wants CMYK, use Edit > Convert to Profile in Photoshop after');
+    L.push('your artwork is in place.');
+    return L.join('\n') + '\n';
+  }
+
+  function zineLabel(plan) {
+    var w = fmtSize(plan, plan.trim.w).replace(' ', ''), h = fmtSize(plan, plan.trim.h).replace(' ', '');
+    var m = { booklet: 'booklet', singles: 'single-pages', minizine: 'fold-and-cut' }[plan.mode];
+    return 'zine-' + m + '-' + plan.pages + 'pp-' + w + 'x' + h;
+  }
+
+  return {
+    TRIM_PRESETS: TRIM_PRESETS,
+    SHEET_PRESETS: SHEET_PRESETS,
+    makePlan: makePlan,
+    sheetGuides: sheetGuides,
+    buildPsd: buildPsd,
+    renderSheet: renderSheet,
+    buildReadme: buildReadme,
+    zineLabel: zineLabel,
+    toPx: toPx
+  };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = ZineCore;
+
+</script>
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var Core = ZineCore;
+  var STORE_KEY = 'zinemaker.v1';
+  var inViewer = !!(window.claude && typeof window.claude.use === 'function');
+
+  var DEFAULTS = {
+    mode: 'booklet', pages: 16, preset: 'half-letter', customW: 5, customH: 7, landscape: false,
+    sheet: 'letter', unit: 'in', dpi: 300, bleed: 0, safe: 0.25, inner: 0.25, innerTouched: false,
+    overlay: true, mask: false
+  };
+  var S = Object.assign({}, DEFAULTS);
+  try {
+    var saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+    if (saved && typeof saved === 'object') Object.keys(DEFAULTS).forEach(function (k) { if (k in saved) S[k] = saved[k]; });
+  } catch (e) {}
+
+  var sel = 0;          // which sheet the preview shows
+  var plan = null;
+  var building = false;
+  var result = null;    // { blob, name, size, bufs }
+
+  /* ---------- helpers ---------- */
+
+  function convert(v, from, to) {
+    if (from === to) return v;
+    return from === 'in' ? v * 25.4 : v / 25.4;
+  }
+  function round(v, unit) {
+    return unit === 'mm' ? Math.round(v * 10) / 10 : Math.round(v * 1000) / 1000;
+  }
+  function fmt(v, unit) { return String(round(v, unit)) + (unit === 'mm' ? ' mm' : ' in'); }
+  function fmtPx(px, dpi, unit) { return fmt(convert(px / dpi, 'in', unit), unit); }
+  function bytes(n) { return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function createCanvas(w, h) {
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    return c;
+  }
+  function nextFrame() { return new Promise(function (r) { setTimeout(r, 20); }); }
+  function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
+
+  /* ---------- form <-> state ---------- */
+
+  function fillStaticOptions() {
+    var p = $('preset');
+    Core.TRIM_PRESETS.forEach(function (t) {
+      var o = el('option', '', t.id === 'custom' ? 'Custom size' : t.name + ' (' + t.w + ' x ' + t.h + ' ' + t.unit + ')');
+      o.value = t.id;
+      p.appendChild(o);
+    });
+    var sh = $('sheet');
+    Core.SHEET_PRESETS.forEach(function (t) {
+      var o = el('option', '', t.name);
+      o.value = t.id;
+      sh.appendChild(o);
+    });
+    var chips = $('pageChips');
+    [8, 12, 16, 24, 32].forEach(function (n) {
+      var b = el('button', 'chip', String(n));
+      b.type = 'button';
+      b.dataset.pages = String(n);
+      chips.appendChild(b);
+    });
+  }
+
+  function pushToForm() {
+    document.querySelector('input[name="mode"][value="' + S.mode + '"]').checked = true;
+    document.querySelector('input[name="unit"][value="' + S.unit + '"]').checked = true;
+    $('pages').value = S.pages;
+    $('preset').value = S.preset;
+    $('customW').value = S.customW;
+    $('customH').value = S.customH;
+    $('landscape').checked = S.landscape;
+    $('sheet').value = S.sheet;
+    $('dpi').value = String(S.dpi);
+    $('bleed').value = S.bleed;
+    $('safe').value = S.safe;
+    $('inner').value = S.inner;
+    $('overlay').checked = S.overlay;
+    $('mask').checked = S.mask;
+  }
+
+  function num(id, fallback, min) {
+    var v = parseFloat($(id).value);
+    if (!isFinite(v)) return fallback;
+    return Math.max(min == null ? 0 : min, v);
+  }
+
+  function pullFromForm(changedId) {
+    S.mode = document.querySelector('input[name="mode"]:checked').value;
+    var newUnit = document.querySelector('input[name="unit"]:checked').value;
+    if (newUnit !== S.unit) {
+      ['customW', 'customH', 'bleed', 'safe', 'inner'].forEach(function (k) {
+        S[k] = round(convert(num(k, S[k]), S.unit, newUnit), newUnit);
+        $(k).value = S[k];
+      });
+      S.unit = newUnit;
+    }
+    var maxPages = S.mode === 'booklet' ? 96 : 100;
+    S.pages = Math.min(maxPages, Math.max(1, Math.floor(num('pages', S.pages, 1))));
+    S.preset = $('preset').value;
+    S.customW = num('customW', S.customW, 0.1);
+    S.customH = num('customH', S.customH, 0.1);
+    S.landscape = $('landscape').checked;
+    S.sheet = $('sheet').value;
+    S.dpi = parseInt($('dpi').value, 10);
+    S.bleed = num('bleed', S.bleed);
+    S.safe = num('safe', S.safe);
+    if (changedId === 'inner') S.innerTouched = true;
+    if (S.innerTouched) {
+      S.inner = num('inner', S.inner);
+    } else {
+      S.inner = S.safe;
+      $('inner').value = S.inner;
+    }
+    S.overlay = $('overlay').checked;
+    S.mask = $('mask').checked;
+  }
+
+  function planOptions() {
+    var o = {
+      mode: S.mode, pages: S.pages, unit: S.unit, dpi: S.dpi,
+      bleed: S.bleed, safe: S.safe, inner: S.inner,
+      overlayVisible: S.overlay, maskPages: S.mask
+    };
+    if (S.mode === 'minizine') {
+      var sh = Core.SHEET_PRESETS.filter(function (t) { return t.id === S.sheet; })[0] || Core.SHEET_PRESETS[0];
+      o.sheetW = convert(sh.w, sh.unit, S.unit);
+      o.sheetH = convert(sh.h, sh.unit, S.unit);
+    } else {
+      var tp = Core.TRIM_PRESETS.filter(function (t) { return t.id === S.preset; })[0] || Core.TRIM_PRESETS[0];
+      var w = tp.id === 'custom' ? S.customW : convert(tp.w, tp.unit, S.unit);
+      var h = tp.id === 'custom' ? S.customH : convert(tp.h, tp.unit, S.unit);
+      if (S.landscape && w < h) { var t = w; w = h; h = t; }
+      else if (!S.landscape && tp.id !== 'custom' && w > h) { var t2 = w; w = h; h = t2; }
+      o.trimW = w; o.trimH = h;
+    }
+    return o;
+  }
+
+  /* ---------- checks ---------- */
+
+  function check(p) {
+    var out = [];
+    var maxSide = Math.max.apply(null, p.sheets.map(function (s) { return Math.max(s.width, s.height); }));
+    var area = p.sheets[0].width * p.sheets[0].height;
+    if (p.trim.w < 50 || p.trim.h < 50) out.push({ level: 'error', text: 'The page is too small to build. Check the size.' });
+    if (maxSide > 16000) out.push({ level: 'error', text: 'The canvas would be ' + maxSide + ' px wide, more than browsers can draw. Lower the resolution.' });
+    else if (area > 16777216) out.push({ level: 'warn', text: 'Each file is ' + Math.round(area / 1e6) + ' megapixels. Phones and Safari may fail at this size. Use a lower resolution if the build stops.' });
+    p.notes.forEach(function (n) { out.push({ level: 'warn', text: n }); });
+    if (p.bleed > 0 && p.mode !== 'minizine') {
+      out.push({ level: 'info', text: 'Bleed makes each file larger than the paper. Print shops trim it off. Home printers cannot print to the edge, so leave bleed at none for those.' });
+    }
+    if (p.mode === 'minizine' && p.bleed > 0) {
+      out.push({ level: 'info', text: 'With bleed, the canvas is larger than the sheet, so it will not print at 100% on that paper. Use no bleed for home printing.' });
+    }
+    return out;
+  }
+
+  /* ---------- preview ---------- */
+
+  function svgPreview(p, sheet) {
+    var W = sheet.width, H = sheet.height;
+    var m = Math.round(Math.max(W, H) * 0.012);
+    var s = '<svg id="preview" xmlns="http://www.w3.org/2000/svg" viewBox="' + (-m) + ' ' + (-m) + ' ' + (W + 2 * m) + ' ' + (H + 2 * m) + '" role="img" aria-label="' +
+      (sheet.title + ': ' + sheet.cells.map(function (c) { return 'page ' + c.page; }).join(', ')) + '">';
+    s += '<rect x="' + (-m) + '" y="' + (-m) + '" width="' + (W + 2 * m) + '" height="' + (H + 2 * m) + '" fill="#ffffff"/>';
+    var fam = 'font-family="Helvetica, Arial, sans-serif" font-weight="700" text-anchor="middle" dominant-baseline="central"';
+    sheet.cells.forEach(function (c) {
+      var bx = c.x - c.bl, by = c.y - c.bt, bw = c.bl + c.w + c.br, bh = c.bt + c.h + c.bb;
+      if (c.bl || c.br || c.bt || c.bb) {
+        s += '<rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" fill="#ff2d78" fill-opacity="0.22"/>';
+        s += '<rect x="' + c.x + '" y="' + c.y + '" width="' + c.w + '" height="' + c.h + '" fill="#ffffff"/>';
+      }
+      var sw = c.w - c.ml - c.mr, shh = c.h - c.mt - c.mb;
+      if (sw > 0 && shh > 0) {
+        s += '<rect x="' + (c.x + c.ml) + '" y="' + (c.y + c.mt) + '" width="' + sw + '" height="' + shh +
+          '" fill="none" stroke="#0090d9" stroke-width="1.5" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>';
+      }
+      s += '<rect x="' + c.x + '" y="' + c.y + '" width="' + c.w + '" height="' + c.h +
+        '" fill="none" stroke="#ff2d78" stroke-width="1.5" vector-effect="non-scaling-stroke"/>';
+      var cx = c.x + c.w / 2, cy = c.y + c.h / 2;
+      var big = Math.round(Math.min(c.h * 0.16, c.w * 0.3));
+      var small = Math.max(10, Math.round(big * 0.22));
+      s += '<g transform="' + (c.rot ? 'rotate(180 ' + cx + ' ' + cy + ')' : '') + '" fill="#9b9b9b" ' + fam + '>';
+      s += '<text x="' + cx + '" y="' + (cy - (c.role ? big * 0.18 : 0)) + '" font-size="' + big + '">' + c.page + '</text>';
+      if (c.role) s += '<text x="' + cx + '" y="' + (cy + big * 0.55) + '" font-size="' + small + '">' + c.role + '</text>';
+      s += '</g>';
+    });
+    if (sheet.cut) {
+      var k = sheet.cut;
+      s += '<line x1="' + k.x1 + '" y1="' + k.y + '" x2="' + k.x2 + '" y2="' + k.y + '" stroke="#e60000" stroke-width="3" vector-effect="non-scaling-stroke"/>';
+      s += '<text x="' + ((k.x1 + k.x2) / 2) + '" y="' + (k.y - Math.round(p.dpi * 0.1)) + '" font-size="' + Math.round(p.dpi * 0.11) +
+        '" fill="#e60000" ' + fam + '>CUT HERE</text>';
+    }
+    s += '</svg>';
+    return s;
+  }
+
+  function chipLabel(p, sheet) {
+    if (p.mode === 'booklet') return sheet.title.replace('Sheet ', '') + '  ' + sheet.cells[0].page + ' | ' + sheet.cells[1].page;
+    if (p.mode === 'singles') return 'p' + sheet.cells[0].page;
+    return 'Sheet';
+  }
+
+  var HOWTO = {
+    booklet: [
+      'Each file is one side of one sheet, with the pages already in booklet order.',
+      'Export every file to PDF with the overlay hidden, then join them in file order.',
+      'Print double-sided, flipping on the short edge. Print sheet 1 alone first as a test.',
+      'Stack the sheets, fold the stack in half and staple along the fold.'
+    ],
+    singles: [
+      'One file per page, numbered in reading order.',
+      'Odd pages are right-hand pages and keep the wider margin on their left. Even pages keep it on their right.',
+      'Hide the overlay, export each page and send them in order to your printer.'
+    ],
+    minizine: [
+      'Print the single sheet at 100% scale, one side only.',
+      'Fold it in half the short way and open it, then in half the long way and open it.',
+      'Cut along the red line through the middle two folds only.',
+      'Fold the long way again, push the ends together so the cut opens, then fold the pages around with page 1 on the cover.'
+    ]
+  };
+  var MODE_HINT = {
+    booklet: 'Pages are paired onto sheets in print order. Folded and stapled in the middle. Page count is a multiple of 4.',
+    singles: 'One file per page, in reading order. Any page count.',
+    minizine: 'One sheet makes an 8-page booklet with a single cut and no staples.'
+  };
+
+  function render() {
+    // visibility by mode
+    var mini = S.mode === 'minizine';
+    $('pagesSet').hidden = mini;
+    $('sizeSet').hidden = mini;
+    $('sheetSet').hidden = !mini;
+    $('innerField').hidden = mini;
+    $('customRow').hidden = mini || S.preset !== 'custom';
+    $('modeHint').textContent = MODE_HINT[S.mode];
+    var stdBleed = S.unit === 'mm' ? '3 mm' : '0.125 in';
+    $('bleedStd').textContent = 'Print shop (' + stdBleed + ')';
+    $('bleedNone').setAttribute('aria-pressed', String(S.bleed === 0));
+    $('bleedStd').setAttribute('aria-pressed', String(Math.abs(S.bleed - (S.unit === 'mm' ? 3 : 0.125)) < 1e-9));
+    Array.prototype.forEach.call($('pageChips').children, function (b) {
+      b.setAttribute('aria-pressed', String(parseInt(b.dataset.pages, 10) === S.pages));
+    });
+    $('safe').previousElementSibling.textContent = 'Safe margin (' + S.unit + ')';
+    $('bleed').previousElementSibling.textContent = 'Bleed (' + S.unit + ')';
+    $('inner').previousElementSibling.textContent = 'Spine-side margin (' + S.unit + ')';
+
+    try {
+      plan = Core.makePlan(planOptions());
+    } catch (e) {
+      plan = null;
+    }
+    if (!plan) return;
+    if (sel >= plan.sheets.length) sel = 0;
+    var sheet = plan.sheets[sel];
+
+    if (mini) {
+      $('sheetHint').textContent = 'Each page is ' + fmtPx(plan.trim.w, plan.dpi, S.unit) + ' x ' + fmtPx(plan.trim.h, plan.dpi, S.unit) + '. The paper is fixed to 8 pages.';
+    }
+
+    // stats
+    var stats = $('stats');
+    stats.textContent = '';
+    var items = [
+      ['Files', plan.sheets.length + (plan.sheets.length === 1 ? ' PSD' : ' PSDs')],
+      ['Page', fmtPx(plan.trim.w, plan.dpi, S.unit) + ' x ' + fmtPx(plan.trim.h, plan.dpi, S.unit)],
+      ['Canvas', sheet.width + ' x ' + sheet.height + ' px'],
+      ['Sheet', fmtPx(sheet.width, plan.dpi, S.unit) + ' x ' + fmtPx(sheet.height, plan.dpi, S.unit)]
+    ];
+    items.forEach(function (it) {
+      var d = el('div');
+      d.appendChild(el('dt', '', it[0]));
+      d.appendChild(el('dd', '', it[1]));
+      stats.appendChild(d);
+    });
+
+    // notes
+    var problems = check(plan);
+    var notes = $('notes');
+    notes.textContent = '';
+    problems.forEach(function (n) { notes.appendChild(el('p', 'note ' + (n.level === 'info' ? '' : 'warn'), n.text)); });
+    $('buildBtn').disabled = building || problems.some(function (n) { return n.level === 'error'; });
+
+    // preview
+    var holder = document.querySelector('.sheet');
+    holder.innerHTML = svgPreview(plan, sheet);
+    $('caption').textContent = sheet.title + '  /  ' + sheet.file;
+
+    // files
+    var files = $('files');
+    files.textContent = '';
+    if (plan.sheets.length > 1) {
+      plan.sheets.forEach(function (sh, i) {
+        var b = el('button', 'chip', chipLabel(plan, sh));
+        b.type = 'button';
+        b.dataset.i = String(i);
+        b.setAttribute('aria-pressed', String(i === sel));
+        files.appendChild(b);
+      });
+    }
+    files.hidden = plan.sheets.length < 2;
+
+    // how to print
+    var how = $('howto');
+    how.textContent = '';
+    how.appendChild(el('h2', '', 'How it prints'));
+    var ol = el('ol');
+    HOWTO[S.mode].forEach(function (t) { ol.appendChild(el('li', '', t)); });
+    how.appendChild(ol);
+
+    updateDownloads();
+  }
+
+  /* ---------- building ---------- */
+
+  function setStatus(text, kind) {
+    $('status').hidden = false;
+    var t = $('statusText');
+    t.textContent = text;
+    t.className = kind === 'error' ? 'err' : '';
+  }
+
+  function invalidateResult() {
+    if (result && !building) {
+      result = null;
+      $('dlBtn').hidden = true;
+      $('bar').hidden = true;
+      $('status').hidden = true;
+    }
+    updateDownloads();
+  }
+
+  function updateDownloads() {
+    var one = $('dlOne');
+    if (result && !inViewer && plan && result.bufs && result.bufs[plan.sheets[sel] && plan.sheets[sel].file]) {
+      one.hidden = false;
+      one.textContent = 'Download ' + plan.sheets[sel].file;
+    } else {
+      one.hidden = true;
+    }
+  }
+
+  async function build() {
+    if (building || !plan) return;
+    if (!window.agPsd || !window.JSZip) {
+      setStatus('The PSD library did not load. Check your connection and reload the page.', 'error');
+      return;
+    }
+    building = true;
+    result = null;
+    $('buildBtn').disabled = true;
+    $('dlBtn').hidden = true;
+    $('bar').hidden = false;
+    var fill = $('barFill');
+    fill.style.width = '0%';
+    var snapshot = plan;
+    var zip = new JSZip();
+    var bufs = {};
+    var n = snapshot.sheets.length;
+    try {
+      for (var i = 0; i < n; i++) {
+        var sh = snapshot.sheets[i];
+        setStatus('Building ' + (i + 1) + ' of ' + n + ': ' + sh.file);
+        fill.style.width = Math.round((i / n) * 90) + '%';
+        await nextFrame();
+        var buf = Core.renderSheet(snapshot, sh, { agPsd: window.agPsd, createCanvas: createCanvas });
+        zip.file(sh.file, buf);
+        if (!inViewer) bufs[sh.file] = buf;
+      }
+      zip.file('README.txt', Core.buildReadme(snapshot, Core.zineLabel(snapshot)));
+      setStatus('Packing the zip file');
+      await nextFrame();
+      var blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } }, function (m) {
+        fill.style.width = (90 + Math.round(m.percent / 10)) + '%';
+      });
+      var name = Core.zineLabel(snapshot) + '.zip';
+      result = { blob: blob, name: name, size: blob.size, bufs: bufs };
+      fill.style.width = '100%';
+      setStatus('Done. ' + n + ' PSD' + (n === 1 ? '' : 's') + ' and a README, ' + bytes(blob.size) + '.');
+      var dl = $('dlBtn');
+      dl.textContent = 'Download ' + name;
+      dl.hidden = false;
+    } catch (e) {
+      setStatus('The build stopped: ' + (e && e.message ? e.message : e) + '. Try a lower resolution.', 'error');
+      $('bar').hidden = true;
+    } finally {
+      building = false;
+      render();
+    }
+  }
+
+  async function saveBlob(blob, name) {
+    if (inViewer) {
+      var dl = null;
+      try { dl = await window.claude.use('downloads'); } catch (e) { dl = null; }
+      if (!dl) { setStatus('Saving files is not available in this view. Open the page in your browser instead.', 'error'); return; }
+      try {
+        await dl.save({ filename: name, data: blob });
+        setStatus('Saved ' + name + '.');
+      } catch (e) {
+        if (e && e.code === 'declined') setStatus('Save cancelled. Press the button to try again.');
+        else setStatus('Could not save: ' + ((e && e.message) || 'unknown error'), 'error');
+      }
+      return;
+    }
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+  }
+
+  /* ---------- events ---------- */
+
+  function onChange(ev) {
+    pullFromForm(ev && ev.target && ev.target.id);
+    invalidateResult();
+    save();
+    render();
+  }
+
+  function init() {
+    fillStaticOptions();
+    pushToForm();
+    pullFromForm();
+
+    var form = $('form');
+    form.addEventListener('input', onChange);
+    form.addEventListener('change', onChange);
+    form.addEventListener('submit', function (e) { e.preventDefault(); });
+
+    $('pageChips').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-pages]');
+      if (!b) return;
+      $('pages').value = b.dataset.pages;
+      onChange({ target: $('pages') });
+    });
+    $('bleedNone').addEventListener('click', function () { $('bleed').value = 0; onChange({ target: $('bleed') }); });
+    $('bleedStd').addEventListener('click', function () { $('bleed').value = S.unit === 'mm' ? 3 : 0.125; onChange({ target: $('bleed') }); });
+    $('files').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-i]');
+      if (!b) return;
+      sel = parseInt(b.dataset.i, 10);
+      render();
+    });
+    $('buildBtn').addEventListener('click', build);
+    $('dlBtn').addEventListener('click', function () { if (result) saveBlob(result.blob, result.name); });
+    $('dlOne').addEventListener('click', function () {
+      var sh = plan && plan.sheets[sel];
+      if (result && sh && result.bufs[sh.file]) saveBlob(new Blob([result.bufs[sh.file]], { type: 'application/octet-stream' }), sh.file);
+    });
+    render();
+  }
+
+  init();
+})();
+</script>
+
+</body>
+</html>
